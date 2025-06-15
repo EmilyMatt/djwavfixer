@@ -1,0 +1,15 @@
+INFO  [djwavfixer_cli] Found WAV files:
+INFO  [djwavfixer_cli] 
+1:
+  Path: <DJWAVFIXER_PWD_PLACEHOLDER>/resources/test/audio_files/original.wav
+  Format Tag: Wave Format Extensible
+  Channels: 2
+  Sample Rate: 44100
+  Average Bytes Per Second: 264600
+  Block Align: 6
+  Bits Per Sample: 24
+  Valid Bits Per Sample: 24
+  Channel Mask: 0x3
+  Subformat Data Length: 16 bytes
+  Needs Fixing: true
+  Can Fix: true

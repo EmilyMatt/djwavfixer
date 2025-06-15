@@ -1,0 +1,101 @@
+INFO  [djwavfixer_cli] Found WAV files:
+INFO  [djwavfixer_cli] 
+1:
+  Path: <DJWAVFIXER_PWD_PLACEHOLDER>/resources/test/audio_files/as_alaw.wav
+  Format Tag: A-Law
+  Channels: 2
+  Sample Rate: 44100
+  Average Bytes Per Second: 88200
+  Block Align: 2
+  Bits Per Sample: 8
+  Valid Bits Per Sample: 8
+  Needs Fixing: true
+  Can Fix: false
+2:
+  Path: <DJWAVFIXER_PWD_PLACEHOLDER>/resources/test/audio_files/as_ulaw.wav
+  Format Tag: U-Law
+  Channels: 2
+  Sample Rate: 44100
+  Average Bytes Per Second: 88200
+  Block Align: 2
+  Bits Per Sample: 8
+  Valid Bits Per Sample: 8
+  Needs Fixing: true
+  Can Fix: false
+3:
+  Path: <DJWAVFIXER_PWD_PLACEHOLDER>/resources/test/audio_files/float_pcm/as_f32_pcm.wav
+  Format Tag: Float PCM
+  Channels: 2
+  Sample Rate: 44100
+  Average Bytes Per Second: 352800
+  Block Align: 8
+  Bits Per Sample: 32
+  Valid Bits Per Sample: 32
+  Needs Fixing: true
+  Can Fix: false
+4:
+  Path: <DJWAVFIXER_PWD_PLACEHOLDER>/resources/test/audio_files/float_pcm/as_f64_pcm.wav
+  Format Tag: Float PCM
+  Channels: 2
+  Sample Rate: 44100
+  Average Bytes Per Second: 705600
+  Block Align: 16
+  Bits Per Sample: 64
+  Valid Bits Per Sample: 64
+  Needs Fixing: true
+  Can Fix: false
+5:
+  Path: <DJWAVFIXER_PWD_PLACEHOLDER>/resources/test/audio_files/int_pcm/as_int16_pcm.wav
+  Format Tag: Integer PCM
+  Channels: 2
+  Sample Rate: 44100
+  Average Bytes Per Second: 176400
+  Block Align: 4
+  Bits Per Sample: 16
+  Valid Bits Per Sample: 16
+  Needs Fixing: false
+6:
+  Path: <DJWAVFIXER_PWD_PLACEHOLDER>/resources/test/audio_files/int_pcm/as_int24_pcm.wav
+  Format Tag: Integer PCM
+  Channels: 2
+  Sample Rate: 44100
+  Average Bytes Per Second: 264600
+  Block Align: 6
+  Bits Per Sample: 24
+  Valid Bits Per Sample: 24
+  Needs Fixing: false
+7:
+  Path: <DJWAVFIXER_PWD_PLACEHOLDER>/resources/test/audio_files/int_pcm/as_int32_pcm.wav
+  Format Tag: Integer PCM
+  Channels: 2
+  Sample Rate: 44100
+  Average Bytes Per Second: 352800
+  Block Align: 8
+  Bits Per Sample: 32
+  Valid Bits Per Sample: 32
+  Needs Fixing: true
+  Can Fix: false
+8:
+  Path: <DJWAVFIXER_PWD_PLACEHOLDER>/resources/test/audio_files/int_pcm/uint/as_uint8_pcm.wav
+  Format Tag: Integer PCM
+  Channels: 2
+  Sample Rate: 44100
+  Average Bytes Per Second: 88200
+  Block Align: 2
+  Bits Per Sample: 8
+  Valid Bits Per Sample: 8
+  Needs Fixing: true
+  Can Fix: false
+9:
+  Path: <DJWAVFIXER_PWD_PLACEHOLDER>/resources/test/audio_files/original.wav
+  Format Tag: Wave Format Extensible
+  Channels: 2
+  Sample Rate: 44100
+  Average Bytes Per Second: 264600
+  Block Align: 6
+  Bits Per Sample: 24
+  Valid Bits Per Sample: 24
+  Channel Mask: 0x3
+  Subformat Data Length: 16 bytes
+  Needs Fixing: true
+  Can Fix: true

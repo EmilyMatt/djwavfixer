@@ -1,0 +1,29 @@
+[package]
+name = "djwavfixer"
+authors = ["Emily Matheys<emilymatt96@gmail.com>"]
+version = "0.1.0"
+edition = "2024"
+license = "MIT or Apache-2.0"
+
+publish = false
+
+[dependencies]
+clap = { version = "4.4.0", default-features = false, features = ["derive", "std"] }
+indexmap = { version = "2.9.0", default-features = false, features = ["std"] }
+log = { version = "0.4.27", default-features = false, features = ["std"] }
+rayon = { version = "1.10.0", default-features = false, optional = true }
+thiserror = { version = "2.0.12", default-features = false, features = ["std"] }
+simple_logger = { version = "5.0.0", default-features = false, features = ["colors", "threads"] }
+
+[features]
+default = ["parallel"]
+parallel = ["dep:rayon"]
+
+[[bin]]
+name = "djwavfixer-gui"
+path = "bin/gui.rs"
+required-features = ["parallel"]
+
+[[bin]]
+name = "djwavfixer-cli"
+path = "bin/cli.rs"
