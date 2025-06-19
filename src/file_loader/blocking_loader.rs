@@ -1,29 +1,32 @@
 use rayon::iter::ParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
 use std::fs;
+use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 
 use crate::DJWavFixerError;
 use crate::errors::Result;
-use crate::file_loader::{WavFile, get_distinct_wav_files};
+use crate::file_loader::get_distinct_wav_files;
 use crate::riff_parser::{FMT_MAGIC, RIFF_MAGIC, RiffFile, WAVE_MAGIC};
-use crate::wav_format::WaveFormatExtensible;
+use crate::wav_file::{WavFile, WaveFormatExtensible};
 
-fn _load_wav_file(path: &PathBuf) -> Result<WaveFormatExtensible> {
-    let single_file = fs::File::open(path)?;
+fn _load_riff_file(path: &PathBuf) -> Result<RiffFile<BufReader<File>>> {
+    let single_file = File::open(path)?;
     let file_size = single_file.metadata()?.len();
 
-    let mut reader = BufReader::new(single_file);
+    let reader = BufReader::new(single_file);
 
-    let mut riff_file = RiffFile::try_new(
-        &mut reader,
+    RiffFile::try_new(
+        reader,
         file_size - RIFF_MAGIC.len() as u64 - FMT_MAGIC.len() as u64,
-    )?;
+    )
+}
 
+fn parse_wav_format(riff_file: &mut RiffFile<BufReader<File>>) -> Result<WaveFormatExtensible> {
     let (reader, chunk) =
         riff_file
-            .get_chunk_mut(RIFF_MAGIC)
+            .get_chunk_and_reader(&RIFF_MAGIC)
             .ok_or(DJWavFixerError::RiffHeaderError(
                 "Missing 'RIFF' chunk".to_string(),
             ))?;
@@ -36,24 +39,32 @@ fn _load_wav_file(path: &PathBuf) -> Result<WaveFormatExtensible> {
 
     let fmt_subchunk =
         chunk
-            .get_subchunk_mut(FMT_MAGIC)
+            .get_subchunk_mut(&FMT_MAGIC)
             .ok_or(DJWavFixerError::RiffHeaderError(
                 "Missing 'fmt ' subchunk".to_string(),
             ))?;
 
-    let fmt_data = fmt_subchunk.data(reader)?;
-
-    WaveFormatExtensible::try_from(fmt_data)
+    WaveFormatExtensible::try_from(fmt_subchunk.read_data(reader)?)
 }
 
-pub fn load_wav_file(path: &PathBuf) -> WavFile {
+pub fn load_wav_file(path: &PathBuf) -> WavFile<BufReader<File>> {
+    let mut riff_file = _load_riff_file(path);
+    let wave_format_info = if let Ok(riff_file) = riff_file.as_mut() {
+        parse_wav_format(riff_file)
+    } else {
+        Err(DJWavFixerError::GeneralError(
+            "Failed to load RIFF file".to_string(),
+        ))
+    };
+
     WavFile {
         path: path.clone(),
-        wave_format_info: _load_wav_file(path),
+        riff_file,
+        wave_format_info,
     }
 }
 
-pub fn load_wav_files(files: &[PathBuf]) -> Result<Vec<WavFile>> {
+pub fn load_wav_files(files: &[PathBuf]) -> Result<Vec<WavFile<BufReader<File>>>> {
     Ok(get_distinct_wav_files(files)?
         .iter()
         .map(load_wav_file)
@@ -64,7 +75,7 @@ pub fn load_wav_files(files: &[PathBuf]) -> Result<Vec<WavFile>> {
 pub fn load_wav_files_rayon(
     files: &[PathBuf],
     rayon_pool: &rayon::ThreadPool,
-) -> Result<Vec<WavFile>> {
+) -> Result<Vec<WavFile<BufReader<File>>>> {
     let distinct_files = get_distinct_wav_files(files)?;
 
     Ok(rayon_pool
@@ -102,22 +113,18 @@ pub fn get_all_wav_files_in_directory(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::file_loader::tests::{create_wav_files_for_test, readable_test_files};
+    use crate::file_loader::tests::readable_test_files;
     use std::path::PathBuf;
     use std::thread;
 
-    fn evaluate_wav_files(wav_files: &[WavFile]) {
-        for wav_file in wav_files {
-            let loaded_file = load_wav_file(&wav_file.path);
-            assert_eq!(wav_file, &loaded_file);
-        }
-    }
-
     #[test]
     fn test_load_single_file_all_types() {
-        let wav_files = create_wav_files_for_test(readable_test_files());
+        let wav_files = readable_test_files();
 
-        evaluate_wav_files(&wav_files);
+        for (wav_file_path, expected_format) in wav_files {
+            let loaded_file = load_wav_file(&wav_file_path);
+            assert_eq!(Ok(expected_format), loaded_file.wave_format_info);
+        }
     }
 
     #[test]
@@ -177,29 +184,32 @@ mod tests {
 
     #[test]
     fn test_load_all_files() {
-        let readable_test_files = create_wav_files_for_test(readable_test_files());
+        let readable_test_files = readable_test_files();
 
         let files_to_load = readable_test_files
             .iter()
-            .map(|x| x.path.clone())
+            .map(|(path, _)| path.clone())
             .collect::<Vec<_>>();
 
         let wav_files = load_wav_files(&files_to_load).expect("Failed to load all files");
         assert_eq!(readable_test_files.len(), wav_files.len());
 
-        for (wav_file, expected_file) in wav_files.iter().zip(&readable_test_files) {
-            assert_eq!(wav_file, expected_file);
+        for (wav_file, (matching_path, expected_format)) in
+            wav_files.iter().zip(&readable_test_files)
+        {
+            assert_eq!(&wav_file.path, matching_path);
+            assert_eq!(wav_file.wave_format_info.as_ref(), Ok(expected_format));
         }
     }
 
     #[cfg(feature = "parallel")]
     #[test]
     fn test_load_all_files_with_rayon() {
-        let readable_test_files = create_wav_files_for_test(readable_test_files());
+        let readable_test_files = readable_test_files();
 
         let files_to_load = readable_test_files
             .iter()
-            .map(|x| x.path.clone())
+            .map(|(path, _)| path.clone())
             .collect::<Vec<_>>();
 
         let rayon_pool = rayon::ThreadPoolBuilder::new()
@@ -211,8 +221,11 @@ mod tests {
             load_wav_files_rayon(&files_to_load, &rayon_pool).expect("Failed to load all files");
         assert_eq!(readable_test_files.len(), wav_files.len());
 
-        for (wav_file, expected_file) in wav_files.iter().zip(&readable_test_files) {
-            assert_eq!(wav_file, expected_file);
+        for (wav_file, (matching_path, expected_format)) in
+            wav_files.iter().zip(&readable_test_files)
+        {
+            assert_eq!(&wav_file.path, matching_path);
+            assert_eq!(wav_file.wave_format_info.as_ref(), Ok(expected_format));
         }
     }
 }

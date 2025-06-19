@@ -4,6 +4,7 @@ use crate::DWORD_SIZE;
 use crate::errors::Result;
 use crate::riff_parser::RIFF_CHUNK_HEADER_SIZE;
 
+#[derive(Debug)]
 pub(crate) struct RiffSubchunk {
     position: u64,
     id: [u8; DWORD_SIZE],
@@ -19,6 +20,10 @@ impl RiffSubchunk {
         if reader.read_exact(&mut id).is_err() {
             return Ok(None); // No more blocks to read
         }
+        log::debug!(
+            "Scanning RIFF subchunk with ID: {:?}",
+            String::from_utf8_lossy(&id)
+        );
 
         let mut size_buffer = [0; 4];
         reader.read_exact(&mut size_buffer)?;
@@ -47,20 +52,17 @@ impl RiffSubchunk {
         self.size
     }
 
-    pub(crate) fn data<R: Read + Seek>(&mut self, reader: &mut R) -> Result<&[u8]> {
-        if self.data.is_some() {
-            return unsafe { Ok(self.data.as_deref().unwrap_unchecked()) }; // Data already read
-        };
+    pub(crate) fn read_data<R: Read + Seek>(&mut self, reader: &mut R) -> Result<&[u8]> {
+        if self.data.is_none() {
+            reader.seek(SeekFrom::Start(
+                self.position + RIFF_CHUNK_HEADER_SIZE as u64,
+            ))?; // Skip block type and size
 
-        reader.seek(SeekFrom::Start(
-            self.position + RIFF_CHUNK_HEADER_SIZE as u64,
-        ))?; // Skip block type and size
+            let mut data = vec![0; self.size as usize];
+            reader.read_exact(&mut data)?;
+            self.data = Some(data);
+        }
 
-        let mut data = vec![0; self.size as usize];
-        reader.read_exact(&mut data)?;
-
-        self.data = Some(data);
-
-        unsafe { Ok(self.data.as_deref().unwrap_unchecked()) }
+        Ok(self.data.as_deref().unwrap())
     }
 }

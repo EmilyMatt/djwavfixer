@@ -5,6 +5,7 @@ use crate::errors::{DJWavFixerError, Result};
 use crate::riff_parser::DWORD_SIZE;
 use crate::riff_parser::riff_subchunk::RiffSubchunk;
 
+#[derive(Debug)]
 pub(crate) struct RiffChunk {
     position: u64,
     id: [u8; DWORD_SIZE],
@@ -39,6 +40,10 @@ impl RiffChunk {
         if reader.read_exact(&mut id).is_err() {
             return Ok(None); // No more chunks to read
         }
+        log::debug!(
+            "Scanning RIFF chunk with ID: {:?}",
+            String::from_utf8_lossy(&id)
+        );
 
         let mut size_buffer = [0; DWORD_SIZE];
         reader.read_exact(&mut size_buffer)?;
@@ -71,8 +76,18 @@ impl RiffChunk {
         }))
     }
 
-    pub(crate) fn get_subchunk_mut(&mut self, id: [u8; DWORD_SIZE]) -> Option<&mut RiffSubchunk> {
-        self.subchunks.get_mut(&id)
+    #[allow(unused)]
+    pub(crate) fn get_subchunk(&self, id: &[u8; DWORD_SIZE]) -> Option<&RiffSubchunk> {
+        self.subchunks.get(id)
+    }
+
+    pub(crate) fn get_subchunk_mut(&mut self, id: &[u8; DWORD_SIZE]) -> Option<&mut RiffSubchunk> {
+        self.subchunks.get_mut(id)
+    }
+
+    #[allow(unused)]
+    pub(crate) fn subchunks(&self) -> &IndexMap<[u8; DWORD_SIZE], RiffSubchunk> {
+        &self.subchunks
     }
 
     pub(crate) fn position(&self) -> u64 {
