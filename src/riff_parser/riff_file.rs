@@ -5,6 +5,7 @@ use crate::errors::Result;
 use crate::riff_parser::RiffChunk;
 use crate::{DJWavFixerError, DWORD_SIZE};
 
+#[derive(Debug)]
 pub(crate) struct RiffFile<R> {
     file: R,
     chunks: IndexMap<[u8; DWORD_SIZE], RiffChunk>,

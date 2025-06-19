@@ -10,11 +10,26 @@ pub(crate) use wav_format::WaveAudioChannels;
 
 mod wav_format;
 
+#[derive(Debug)]
+pub(crate) enum WavFileLoadStatus<R> {
+    Success {
+        #[allow(unused)]
+        riff_file: RiffFile<R>,
+        wave_format_info: WaveFormatExtensible,
+    },
+    WavFileInvalid {
+        #[allow(unused)]
+        riff_file: RiffFile<R>,
+        error: crate::DJWavFixerError,
+    },
+    RiffFileInvalid {
+        error: crate::DJWavFixerError,
+    },
+}
+
 pub struct WavFile<R> {
     pub(crate) path: PathBuf,
-    #[allow(unused)]
-    pub(crate) riff_file: crate::Result<RiffFile<R>>,
-    pub(crate) wave_format_info: crate::Result<WaveFormatExtensible>,
+    pub(crate) load_status: WavFileLoadStatus<R>,
 }
 
 impl<R> WavFile<R> {
@@ -23,18 +38,24 @@ impl<R> WavFile<R> {
     }
 
     pub fn needs_fixing(&self) -> Option<bool> {
-        match self.wave_format_info {
-            Ok(ref wave_format_info) => Some(
+        match self.load_status {
+            WavFileLoadStatus::Success {
+                ref wave_format_info,
+                ..
+            } => Some(
                 !wave_format_info.is_sample_bits_supported_by_players()
                     || !wave_format_info.is_integer_pcm(),
             ),
-            Err(_) => None,
+            _ => None,
         }
     }
 
     pub fn can_fix(&self) -> Option<bool> {
-        match self.wave_format_info {
-            Ok(ref wave_format_info) => {
+        match self.load_status {
+            WavFileLoadStatus::Success {
+                ref wave_format_info,
+                ..
+            } => {
                 if wave_format_info.is_sample_bits_supported_by_players() {
                     Some(
                         self.path.is_file()
@@ -48,14 +69,17 @@ impl<R> WavFile<R> {
                     Some(false)
                 }
             }
-            Err(_) => None,
+            _ => None,
         }
     }
 
     pub fn write_information(&self, mut writer: impl Write) -> crate::Result<()> {
         writeln!(writer, "  Path: {}", self.path.display())?;
-        match self.wave_format_info.as_ref() {
-            Ok(wave_format_info) => {
+        match self.load_status {
+            WavFileLoadStatus::Success {
+                ref wave_format_info,
+                ..
+            } => {
                 wave_format_info.write_information(&mut writer)?;
                 if let Some(needs_fixing) = self.needs_fixing() {
                     writeln!(writer, "  Needs Fixing: {}", needs_fixing)?;
@@ -66,8 +90,11 @@ impl<R> WavFile<R> {
                     }
                 }
             }
-            Err(err) => {
-                writeln!(writer, "  Error: {}", err)?;
+            WavFileLoadStatus::WavFileInvalid { ref error, .. } => {
+                writeln!(writer, "  WAV file invalid: {}", error)?;
+            }
+            WavFileLoadStatus::RiffFileInvalid { ref error } => {
+                writeln!(writer, "  Could not load RIFF structure: {}", error)?;
             }
         }
 

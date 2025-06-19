@@ -9,7 +9,7 @@ use crate::DJWavFixerError;
 use crate::errors::Result;
 use crate::file_loader::get_distinct_wav_files;
 use crate::riff_parser::{FMT_MAGIC, RIFF_MAGIC, RiffFile, WAVE_MAGIC};
-use crate::wav_file::{WavFile, WaveFormatExtensible};
+use crate::wav_file::{WavFile, WavFileLoadStatus, WaveFormatExtensible};
 
 fn _load_riff_file(path: &PathBuf) -> Result<RiffFile<BufReader<File>>> {
     let single_file = File::open(path)?;
@@ -48,19 +48,20 @@ fn parse_wav_format(riff_file: &mut RiffFile<BufReader<File>>) -> Result<WaveFor
 }
 
 pub fn load_wav_file(path: &PathBuf) -> WavFile<BufReader<File>> {
-    let mut riff_file = _load_riff_file(path);
-    let wave_format_info = if let Ok(riff_file) = riff_file.as_mut() {
-        parse_wav_format(riff_file)
-    } else {
-        Err(DJWavFixerError::GeneralError(
-            "Failed to load RIFF file".to_string(),
-        ))
-    };
+    let riff_file = _load_riff_file(path);
 
     WavFile {
         path: path.clone(),
-        riff_file,
-        wave_format_info,
+        load_status: match riff_file {
+            Ok(mut riff_file) => match parse_wav_format(&mut riff_file) {
+                Ok(wave_format_info) => WavFileLoadStatus::Success {
+                    riff_file,
+                    wave_format_info,
+                },
+                Err(error) => WavFileLoadStatus::WavFileInvalid { riff_file, error },
+            },
+            Err(error) => WavFileLoadStatus::RiffFileInvalid { error },
+        },
     }
 }
 
@@ -114,6 +115,7 @@ pub fn get_all_wav_files_in_directory(
 mod tests {
     use super::*;
     use crate::file_loader::tests::readable_test_files;
+    use crate::wav_file::WavFileLoadStatus;
     use std::path::PathBuf;
     use std::thread;
 
@@ -123,7 +125,16 @@ mod tests {
 
         for (wav_file_path, expected_format) in wav_files {
             let loaded_file = load_wav_file(&wav_file_path);
-            assert_eq!(Ok(expected_format), loaded_file.wave_format_info);
+            let WavFileLoadStatus::Success {
+                wave_format_info, ..
+            } = loaded_file.load_status
+            else {
+                panic!(
+                    "Expected WavFileLoadStatus::Success, got {:?}",
+                    loaded_file.load_status
+                );
+            };
+            assert_eq!(expected_format, wave_format_info);
         }
     }
 
@@ -198,7 +209,16 @@ mod tests {
             wav_files.iter().zip(&readable_test_files)
         {
             assert_eq!(&wav_file.path, matching_path);
-            assert_eq!(wav_file.wave_format_info.as_ref(), Ok(expected_format));
+            let WavFileLoadStatus::Success {
+                wave_format_info, ..
+            } = &wav_file.load_status
+            else {
+                panic!(
+                    "Expected WavFileLoadStatus::Success, got {:?}",
+                    wav_file.load_status
+                );
+            };
+            assert_eq!(wave_format_info, expected_format);
         }
     }
 
@@ -225,7 +245,16 @@ mod tests {
             wav_files.iter().zip(&readable_test_files)
         {
             assert_eq!(&wav_file.path, matching_path);
-            assert_eq!(wav_file.wave_format_info.as_ref(), Ok(expected_format));
+            let WavFileLoadStatus::Success {
+                wave_format_info, ..
+            } = &wav_file.load_status
+            else {
+                panic!(
+                    "Expected WavFileLoadStatus::Success, got {:?}",
+                    wav_file.load_status
+                );
+            };
+            assert_eq!(wave_format_info, expected_format);
         }
     }
 }
