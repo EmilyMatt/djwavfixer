@@ -37,9 +37,9 @@ pub struct Cli {
     #[arg(long, action=ArgAction::SetTrue)]
     pub fix: bool,
 
-    /// Whether to suppress output messages
-    #[arg(long, action=ArgAction::SetTrue)]
-    pub silent: bool,
+    /// Log level for the application
+    #[arg(long)]
+    pub log_level: log::Level,
 }
 
 fn get_files(cli: &Cli, pool: Option<&rayon::ThreadPool>) -> Result<Vec<WavFile<BufReader<File>>>> {
@@ -125,8 +125,7 @@ fn run_with_cli(cli: Cli) -> Result<()> {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    if !cli.silent {
-        simple_logger::init_with_env().expect("Could not initialize logger");
-    }
+    simple_logger::init_with_level(cli.log_level).expect("Could not initialize logger");
+
     run_with_cli(cli)
 }
