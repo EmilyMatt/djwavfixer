@@ -1,14 +1,21 @@
 use indexmap::IndexMap;
+use std::fmt::{Debug, Formatter};
 use std::io::{Read, Seek};
 
 use crate::errors::Result;
 use crate::riff_parser::RiffChunk;
 use crate::{DJWavFixerError, DWORD_SIZE};
 
-#[derive(Debug)]
 pub(crate) struct RiffFile<R> {
     file: R,
     chunks: IndexMap<[u8; DWORD_SIZE], RiffChunk>,
+}
+
+// Must implement Debug manually because of the generic type R
+impl<R> Debug for RiffFile<R> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.chunks.fmt(f)
+    }
 }
 
 impl<R> RiffFile<R> {

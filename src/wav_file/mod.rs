@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::fmt::{Debug, Formatter, Write};
 use std::path::PathBuf;
 
 use crate::riff_parser::RiffFile;
@@ -10,7 +10,6 @@ pub(crate) use wav_format::WaveAudioChannels;
 
 mod wav_format;
 
-#[derive(Debug)]
 pub(crate) enum WavFileLoadStatus<R> {
     Success {
         #[allow(unused)]
@@ -25,6 +24,31 @@ pub(crate) enum WavFileLoadStatus<R> {
     RiffFileInvalid {
         error: crate::DJWavFixerError,
     },
+}
+
+// Must implement Debug manually because of the generic type R
+impl<R> Debug for WavFileLoadStatus<R> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WavFileLoadStatus::Success {
+                riff_file,
+                wave_format_info,
+            } => f
+                .debug_struct("Success")
+                .field("riff_file", riff_file)
+                .field("wave_format_info", wave_format_info)
+                .finish(),
+            WavFileLoadStatus::WavFileInvalid { riff_file, error } => f
+                .debug_struct("WavFileInvalid")
+                .field("riff_file", riff_file)
+                .field("error", error)
+                .finish(),
+            WavFileLoadStatus::RiffFileInvalid { error } => f
+                .debug_struct("RiffFileInvalid")
+                .field("error", error)
+                .finish(),
+        }
+    }
 }
 
 pub struct WavFile<R> {

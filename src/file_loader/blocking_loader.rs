@@ -120,25 +120,6 @@ mod tests {
     use std::thread;
 
     #[test]
-    fn test_load_single_file_all_types() {
-        let wav_files = readable_test_files();
-
-        for (wav_file_path, expected_format) in wav_files {
-            let loaded_file = load_wav_file(&wav_file_path);
-            let WavFileLoadStatus::Success {
-                wave_format_info, ..
-            } = loaded_file.load_status
-            else {
-                panic!(
-                    "Expected WavFileLoadStatus::Success, got {:?}",
-                    loaded_file.load_status
-                );
-            };
-            assert_eq!(expected_format, wave_format_info);
-        }
-    }
-
-    #[test]
     fn test_get_all_wav_files_in_directory_nonrecursive() {
         let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("resources")
@@ -193,21 +174,16 @@ mod tests {
         assert_eq!(files, expected_files);
     }
 
-    #[test]
-    fn test_load_all_files() {
-        let readable_test_files = readable_test_files();
+    fn compare_files<R>(
+        wav_files: &[WavFile<R>],
+        readable_test_files: &[(PathBuf, WaveFormatExtensible)],
+    ) {
+        assert_eq!(wav_files.len(), readable_test_files.len());
 
-        let files_to_load = readable_test_files
-            .iter()
-            .map(|(path, _)| path.clone())
-            .collect::<Vec<_>>();
-
-        let wav_files = load_wav_files(&files_to_load).expect("Failed to load all files");
-        assert_eq!(readable_test_files.len(), wav_files.len());
-
-        for (wav_file, (matching_path, expected_format)) in
-            wav_files.iter().zip(&readable_test_files)
-        {
+        let compare_file = |(wav_file, (matching_path, expected_format)): (
+            &WavFile<R>,
+            &(PathBuf, WaveFormatExtensible),
+        )| {
             assert_eq!(&wav_file.path, matching_path);
             let WavFileLoadStatus::Success {
                 wave_format_info, ..
@@ -219,7 +195,37 @@ mod tests {
                 );
             };
             assert_eq!(wave_format_info, expected_format);
-        }
+        };
+
+        wav_files
+            .iter()
+            .zip(readable_test_files.iter())
+            .for_each(compare_file);
+    }
+
+    #[test]
+    fn test_load_single_file_all_types() {
+        let readable_test_files = readable_test_files();
+
+        let wav_files = readable_test_files
+            .iter()
+            .map(|(path, _)| load_wav_file(path))
+            .collect::<Vec<_>>();
+
+        compare_files(&wav_files, &readable_test_files);
+    }
+
+    #[test]
+    fn test_load_all_files() {
+        let readable_test_files = readable_test_files();
+
+        let files_to_load = readable_test_files
+            .iter()
+            .map(|(path, _)| path.clone())
+            .collect::<Vec<_>>();
+        let wav_files = load_wav_files(&files_to_load).expect("Failed to load all files");
+
+        compare_files(&wav_files, &readable_test_files);
     }
 
     #[cfg(feature = "parallel")]
@@ -239,22 +245,7 @@ mod tests {
 
         let wav_files =
             load_wav_files_rayon(&files_to_load, &rayon_pool).expect("Failed to load all files");
-        assert_eq!(readable_test_files.len(), wav_files.len());
 
-        for (wav_file, (matching_path, expected_format)) in
-            wav_files.iter().zip(&readable_test_files)
-        {
-            assert_eq!(&wav_file.path, matching_path);
-            let WavFileLoadStatus::Success {
-                wave_format_info, ..
-            } = &wav_file.load_status
-            else {
-                panic!(
-                    "Expected WavFileLoadStatus::Success, got {:?}",
-                    wav_file.load_status
-                );
-            };
-            assert_eq!(wave_format_info, expected_format);
-        }
+        compare_files(&wav_files, &readable_test_files);
     }
 }
