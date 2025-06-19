@@ -13,6 +13,7 @@ indexmap = { version = "2.9.0", default-features = false, features = ["std"] }
 log = { version = "0.4.27", default-features = false, features = ["std"] }
 rayon = { version = "1.10.0", default-features = false, optional = true }
 simple_logger = { version = "5.0.0", default-features = false, features = ["colors", "threads"] }
+tempfile = { version = "3.20.0", default-features = false }
 thiserror = { version = "2.0.12", default-features = false, features = ["std"] }
 
 [features]

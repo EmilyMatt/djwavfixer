@@ -2,16 +2,13 @@ use std::fs::File;
 use std::io;
 use std::io::{BufReader, BufWriter, Cursor, Seek, SeekFrom, Write};
 
+use crate::Result;
 use crate::riff_parser::RIFF_CHUNK_HEADER_SIZE;
-use crate::wav_file::WaveFormatType;
-use crate::{Result, WavFile};
+use crate::wav_file::{ValidWavFile, WaveFormatType};
 
-pub fn fix_wav_file(wav_file: &mut WavFile<BufReader<File>>) -> Result<()> {
-    let riff_file = wav_file.riff_file.as_mut().map_err(|err| err.clone())?;
-    let wave_format_info = wav_file
-        .wave_format_info
-        .as_ref()
-        .map_err(|err| err.clone())?;
+pub fn fix_wav_file(wav_file: &mut ValidWavFile<BufReader<File>>) -> Result<()> {
+    let riff_file = &mut wav_file.riff_file;
+    let wave_format_info = &wav_file.wave_format_info;
 
     let mut new_file = BufWriter::new(tempfile::tempfile()?);
 

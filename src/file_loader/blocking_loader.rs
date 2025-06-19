@@ -9,7 +9,7 @@ use crate::DJWavFixerError;
 use crate::errors::Result;
 use crate::file_loader::get_distinct_wav_files;
 use crate::riff_parser::{FMT_MAGIC, RIFF_MAGIC, RiffFile, WAVE_MAGIC};
-use crate::wav_file::{WavFile, WavFileLoadStatus, WaveFormatExtensible};
+use crate::wav_file::{ValidWavFile, WavFile, WavFileLoadStatus, WaveFormatExtensible};
 
 fn _load_riff_file(path: &PathBuf) -> Result<RiffFile<BufReader<File>>> {
     let single_file = File::open(path)?;
@@ -54,10 +54,10 @@ pub fn load_wav_file(path: &PathBuf) -> WavFile<BufReader<File>> {
         path: path.clone(),
         load_status: match riff_file {
             Ok(mut riff_file) => match parse_wav_format(&mut riff_file) {
-                Ok(wave_format_info) => WavFileLoadStatus::Success {
+                Ok(wave_format_info) => WavFileLoadStatus::Success(ValidWavFile {
                     riff_file,
                     wave_format_info,
-                },
+                }),
                 Err(error) => WavFileLoadStatus::WavFileInvalid { riff_file, error },
             },
             Err(error) => WavFileLoadStatus::RiffFileInvalid { error },
@@ -185,9 +185,9 @@ mod tests {
             &(PathBuf, WaveFormatExtensible),
         )| {
             assert_eq!(&wav_file.path, matching_path);
-            let WavFileLoadStatus::Success {
+            let WavFileLoadStatus::Success(ValidWavFile {
                 wave_format_info, ..
-            } = &wav_file.load_status
+            }) = &wav_file.load_status
             else {
                 panic!(
                     "Expected WavFileLoadStatus::Success, got {:?}",
