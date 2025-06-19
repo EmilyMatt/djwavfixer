@@ -31,7 +31,7 @@ jobs:
           save-if: ${{ github.ref_name == 'main' }}
           cache-all-crates: 'true'
 
-      - uses: taiki-e/cache-cargo-install-action@v2
+      - uses: taiki-e/install-action@v2
         with:
           tool: "cargo-nextest"
 
@@ -43,11 +43,11 @@ jobs:
         run: |
           cargo build --bin djwavfixer-cli
           
-          ./target/debug/djwavfixer-cli ./resources/test/audio_files/original.wav > single_file_output.txt
+          ./target/debug/djwavfixer-cli --log-level=info ./resources/test/audio_files/original.wav > single_file_output.txt
           ./resources/cli_results/cmp.py single_file_output.txt
           
-          ./target/debug/djwavfixer-cli ./resources/test/audio_files > single_dir_output.txt
+          ./target/debug/djwavfixer-cli --log-level=info ./resources/test/audio_files > single_dir_output.txt
           ./resources/cli_results/cmp.py single_dir_output.txt
           
-          ./target/debug/djwavfixer-cli ./resources/test/audio_files --recursive > recursive_output.txt
+          ./target/debug/djwavfixer-cli --log-level=info ./resources/test/audio_files --recursive > recursive_output.txt
           ./resources/cli_results/cmp.py recursive_output.txt  

@@ -1,6 +1,7 @@
-use crate::errors::{DJWavFixerError, Result};
 use std::fmt::Write;
 use std::fmt::{Display, Formatter};
+
+use crate::errors::{DJWavFixerError, Result};
 
 #[repr(u16)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -11,7 +12,7 @@ pub(crate) enum WaveAudioChannels {
 }
 
 impl WaveAudioChannels {
-    fn as_u16(&self) -> u16 {
+    pub(crate) fn as_u16(&self) -> u16 {
         match self {
             WaveAudioChannels::Mono => 1,
             WaveAudioChannels::Stereo => 2,
@@ -85,6 +86,7 @@ pub struct WaveFormatExtensible {
     pub(crate) avg_bytes_per_second: u32,
     pub(crate) block_align: u16,
     pub(crate) bits_per_sample: u16,
+    pub(crate) cb_size: u16,
     pub(crate) valid_bits_per_sample: Option<u16>,
     pub(crate) channel_mask: u32,
     pub(crate) subformat_data: Vec<u8>,
@@ -97,6 +99,14 @@ impl WaveFormatExtensible {
 
     pub(crate) fn is_sample_bits_supported_by_players(&self) -> bool {
         self.bits_per_sample == 16 || self.bits_per_sample == 24
+    }
+
+    #[allow(unused)]
+    pub(crate) fn are_channels_supported_by_players(&self) -> bool {
+        matches!(
+            self.channels,
+            WaveAudioChannels::Mono | WaveAudioChannels::Stereo
+        )
     }
 
     pub(crate) fn write_information(&self, mut writer: impl Write) -> Result<()> {
@@ -163,7 +173,7 @@ impl TryFrom<&[u8]> for WaveFormatExtensible {
                 u32::from_le_bytes(data[8..12].try_into().unwrap_unchecked()),
                 u16::from_le_bytes(data[12..14].try_into().unwrap_unchecked()),
                 u16::from_le_bytes(data[14..16].try_into().unwrap_unchecked()),
-                // cbSize is does not exist in non-extensible formats, so we read it conditionally
+                // cbSize does not exist in non-extensible formats, so we read it conditionally
                 if data.len() > 16 {
                     u16::from_le_bytes(data[16..18].try_into().unwrap_unchecked())
                 } else {
@@ -246,6 +256,7 @@ impl TryFrom<&[u8]> for WaveFormatExtensible {
             avg_bytes_per_second,
             block_align,
             bits_per_sample,
+            cb_size,
             valid_bits_per_sample,
             channel_mask,
             subformat_data,

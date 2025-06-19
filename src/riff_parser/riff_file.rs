@@ -1,4 +1,5 @@
 use indexmap::IndexMap;
+use std::fmt::{Debug, Formatter};
 use std::io::{Read, Seek};
 
 use crate::errors::Result;
@@ -6,8 +7,39 @@ use crate::riff_parser::RiffChunk;
 use crate::{DJWavFixerError, DWORD_SIZE};
 
 pub(crate) struct RiffFile<R> {
-    reader: R,
+    file: R,
     chunks: IndexMap<[u8; DWORD_SIZE], RiffChunk>,
+}
+
+// Must implement Debug manually because of the generic type R
+impl<R> Debug for RiffFile<R> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.chunks.fmt(f)
+    }
+}
+
+impl<R> RiffFile<R> {
+    pub(crate) fn get_chunk_and_reader(
+        &mut self,
+        id: &[u8; DWORD_SIZE],
+    ) -> Option<(&mut R, &mut RiffChunk)> {
+        self.chunks.get_mut(id).map(|chunk| (&mut self.file, chunk))
+    }
+
+    #[allow(unused)]
+    pub(crate) fn get_chunk(&self, id: &[u8; DWORD_SIZE]) -> Option<&RiffChunk> {
+        self.chunks.get(id)
+    }
+
+    #[allow(unused)]
+    pub(crate) fn chunks(&self) -> &IndexMap<[u8; DWORD_SIZE], RiffChunk> {
+        &self.chunks
+    }
+
+    #[allow(unused)]
+    pub(crate) fn reader(&mut self) -> &mut R {
+        &mut self.file
+    }
 }
 
 impl<R: Read + Seek> RiffFile<R> {
@@ -27,8 +59,8 @@ impl<R: Read + Seek> RiffFile<R> {
         Ok(chunks)
     }
 
-    pub fn try_new(mut reader: R, data_size: u64) -> Result<Self> {
-        let chunks = Self::scan_chunks(&mut reader)?;
+    pub fn try_new(mut file: R, data_size: u64) -> Result<Self> {
+        let chunks = Self::scan_chunks(&mut file)?;
 
         let last_chunk_end = chunks
             .last()
@@ -42,12 +74,6 @@ impl<R: Read + Seek> RiffFile<R> {
             )));
         }
 
-        Ok(Self { reader, chunks })
-    }
-
-    pub fn get_chunk_mut(&mut self, id: [u8; DWORD_SIZE]) -> Option<(&mut R, &mut RiffChunk)> {
-        self.chunks
-            .get_mut(&id)
-            .map(|chunk| (&mut self.reader, chunk))
+        Ok(Self { file, chunks })
     }
 }

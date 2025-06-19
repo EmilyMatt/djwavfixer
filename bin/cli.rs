@@ -1,6 +1,8 @@
 use clap::{ArgAction, Parser};
 use djwavfixer::{Result, WavFile};
 use std::fmt::Write;
+use std::fs::File;
+use std::io::BufReader;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::{path, thread};
@@ -16,7 +18,7 @@ pub struct Cli {
     pub recursive: bool,
 
     /// Use async processing
-    #[arg(long, required = false, default_missing_value = "false")]
+    #[arg(long, action=ArgAction::SetTrue)]
     pub use_async: bool,
 
     /// Number of threads to use(default is number of logical cores)
@@ -24,22 +26,23 @@ pub struct Cli {
     pub num_threads: Option<NonZeroUsize>,
 
     /// Whether to only print fixable files
-    #[arg(long, required = false, default_missing_value = "false")]
+    #[arg(long, action=ArgAction::SetTrue)]
     pub ignore_unfixable: bool,
 
     /// Whether to only print that need fixing
-    #[arg(long, required = false, default_missing_value = "false")]
+    #[arg(long, action=ArgAction::SetTrue)]
     pub ignore_valid: bool,
 
     /// Apply fixes to files if possible
-    #[arg(long, required = false, default_missing_value = "false")]
+    #[arg(long, action=ArgAction::SetTrue)]
     pub fix: bool,
 
-    #[arg(long, required = false, default_missing_value = "false")]
-    pub silent: bool,
+    /// Log level for the application
+    #[arg(long)]
+    pub log_level: log::Level,
 }
 
-fn get_files(cli: &Cli) -> Result<Vec<WavFile>> {
+fn get_files(cli: &Cli, pool: Option<&rayon::ThreadPool>) -> Result<Vec<WavFile<BufReader<File>>>> {
     let path_to_read = path::absolute(&cli.path)?;
     let files = if path_to_read.is_dir() {
         djwavfixer::get_all_wav_files_in_directory(&path_to_read, cli.recursive)?
@@ -52,20 +55,7 @@ fn get_files(cli: &Cli) -> Result<Vec<WavFile>> {
         )));
     };
 
-    let num_threads = cli
-        .num_threads
-        .unwrap_or(thread::available_parallelism()?)
-        .get();
-
-    let pool = (num_threads > 1)
-        .then(|| {
-            rayon::ThreadPoolBuilder::new()
-                .num_threads(num_threads)
-                .build()
-        })
-        .transpose()?;
-
-    let mut read_files = if let Some(pool) = pool.as_ref() {
+    let mut read_files = if let Some(pool) = pool {
         djwavfixer::load_wav_files_rayon(&files, pool)?
     } else {
         djwavfixer::load_wav_files(&files)?
@@ -99,7 +89,20 @@ fn get_files(cli: &Cli) -> Result<Vec<WavFile>> {
 }
 
 fn run_with_cli(cli: Cli) -> Result<()> {
-    let read_files = get_files(&cli)?;
+    let num_threads = cli
+        .num_threads
+        .unwrap_or(thread::available_parallelism()?)
+        .get();
+
+    let pool = (num_threads > 1)
+        .then(|| {
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(num_threads)
+                .build()
+        })
+        .transpose()?;
+
+    let read_files = get_files(&cli, pool.as_ref())?;
     if read_files.is_empty() {
         // Error message already logged in get_files
         return Ok(());
@@ -122,8 +125,7 @@ fn run_with_cli(cli: Cli) -> Result<()> {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    if !cli.silent {
-        simple_logger::init_with_env().expect("Could not initialize logger");
-    }
+    simple_logger::init_with_level(cli.log_level).expect("Could not initialize logger");
+
     run_with_cli(cli)
 }
